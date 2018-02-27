@@ -877,14 +877,17 @@ public class SubversionSCM extends SCM implements Serializable {
             Run lsb = build.getParent().getLastSuccessfulBuild();
             if (build instanceof AbstractBuild && lsb != null && build.getNumber()-lsb.getNumber()>10
             && build.getTimestamp().getTimeInMillis()-lsb.getTimestamp().getTimeInMillis() > TimeUnit2.DAYS.toMillis(1)) {
+                // wweburg: Disabling the job disable, because it disables jobs even when repo hasn't moved (maybe it's
+                // temporary down / timing out?)
+                
                 // Disable this project if the location doesn't exist any more, see issue #763
                 // but only do so if there was at least some successful build,
                 // to make sure that initial configuration error won't disable the build. see issue #1567
                 // finally, only disable a build if the failure persists for some time.
                 // see http://www.nabble.com/Should-Hudson-have-an-option-for-a-content-fingerprint--td24022683.html
 
-                listener.getLogger().println("One or more repository locations do not exist anymore for " + build.getParent().getName() + ", project will be disabled.");
-                disableProject(((AbstractBuild) build).getProject(), listener);
+                //listener.getLogger().println("One or more repository locations do not exist anymore for " + build.getParent().getName() + ", project will be disabled.");
+                //disableProject(((AbstractBuild) build).getProject(), listener);
             }
             return null;
         }
@@ -1382,9 +1385,14 @@ public class SubversionSCM extends SCM implements Serializable {
         if (lastCompletedBuild != null) {
             if (project instanceof AbstractProject && repositoryLocationsNoLongerExist(lastCompletedBuild, listener, env)) {
                 // Disable this project, see HUDSON-763
-                listener.getLogger().println(Messages.SubversionSCM_pollChanges_locationsNoLongerExist(project));
-                disableProject((AbstractProject) project, listener);
-                return NO_CHANGES;
+                //listener.getLogger().println(Messages.SubversionSCM_pollChanges_locationsNoLongerExist(project));
+                //disableProject((AbstractProject) project, listener);
+                
+                // wweburg: It seems that if trouble happens, most code here says to try a build. We will do that
+                // instead of disabling the job since that puts valid jobs in a disabled state and/or stops polling
+                // from working from here on out, even if a job a re-enabled. Re-saving the job has been the only way
+                // to get builds going again.
+                return BUILD_NOW;
             }
 
             // Are the locations checked out in the workspace consistent with the current configuration?
